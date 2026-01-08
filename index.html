@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Order App</title>
+
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, button { margin: 5px; padding: 6px; }
+    .card { border: 1px solid #ddd; padding: 10px; margin-top: 10px; }
+  </style>
+
+</head>
+<body>
+
+  <h2>Order Service UI</h2>
+
+  <hr>
+
+  <!-- CREATE -->
+  <h3>Create Order</h3>
+
+  <input id="email" placeholder="User Email" />
+  <input id="product" placeholder="Product Name" />
+  <input id="amount" placeholder="Amount" type="number" />
+
+  <button onclick="createOrder()">Create</button>
+
+  <div id="createResult"></div>
+
+  <hr>
+
+  <!-- GET ALL -->
+  <h3>Get All Orders</h3>
+
+  <button onclick="getAll()">Load Orders</button>
+
+  <div id="orders"></div>
+
+  <hr>
+
+  <!-- GET BY ID -->
+  <h3>Get Order by ID</h3>
+
+  <input id="orderId" placeholder="Order ID" type="number" />
+  <button onclick="getById()">Find</button>
+
+  <div id="singleOrder"></div>
+
+  <hr>
+
+  <!-- UPDATE -->
+  <h3>Update Order</h3>
+
+  <input id="uId" type="number" placeholder="Order ID" />
+  <input id="uEmail" placeholder="User Email" />
+  <input id="uProduct" placeholder="Product Name" />
+  <input id="uAmount" placeholder="Amount" type="number" />
+
+  <button onclick="updateOrder()">Update</button>
+
+  <div id="updateResult"></div>
+
+  <hr>
+
+  <!-- CANCEL / CONFIRM / DELETE -->
+  <h3>Order Actions</h3>
+
+  <input id="actionId" type="number" placeholder="Order ID" />
+
+  <button onclick="cancelOrder()">Cancel</button>
+  <button onclick="confirmOrder()">Confirm</button>
+  <button onclick="deleteOrder()">Delete</button>
+
+  <div id="actionResult"></div>
+
+
+<script>
+
+const BASE_URL = "http://localhost:8080/api/orders";
+
+/* CREATE */
+async function createOrder() {
+  const body = {
+    userEmail: email.value,
+    productName: product.value,
+    amount: amount.value
+  };
+
+  const res = await fetch(BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  document.getElementById("createResult").innerText =
+    await res.text();
+}
+
+/* GET ALL */
+async function getAll() {
+  const res = await fetch(BASE_URL);
+  const data = await res.json();
+
+  orders.innerHTML = data.map(o => `
+    <div class="card">
+      <b>ID:</b> ${o.id}<br/>
+      <b>Email:</b> ${o.userEmail}<br/>
+      <b>Product:</b> ${o.productName}<br/>
+      <b>Amount:</b> ${o.amount}<br/>
+      <b>Status:</b> ${o.status}
+    </div>
+  `).join("");
+}
+
+/* GET BY ID */
+async function getById() {
+  const res = await fetch(`${BASE_URL}/${orderId.value}`);
+  singleOrder.innerHTML = await res.text();
+}
+
+/* UPDATE */
+async function updateOrder() {
+  const body = {
+    userEmail: uEmail.value,
+    productName: uProduct.value,
+    amount: uAmount.value
+  };
+
+  const res = await fetch(`${BASE_URL}/${uId.value}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  updateResult.innerText = await res.text();
+}
+
+/* CANCEL */
+async function cancelOrder() {
+  const res = await fetch(`${BASE_URL}/${actionId.value}/cancel`, {
+    method: "POST"
+  });
+
+  actionResult.innerText = await res.text();
+}
+
+/* CONFIRM */
+async function confirmOrder() {
+  const res = await fetch(`${BASE_URL}/${actionId.value}/confirm`, {
+    method: "POST"
+  });
+
+  actionResult.innerText = await res.text();
+}
+
+/* DELETE */
+async function deleteOrder() {
+  const res = await fetch(`${BASE_URL}/${actionId.value}`, {
+    method: "DELETE"
+  });
+
+  actionResult.innerText = res.ok
+    ? "Deleted Successfully"
+    : "Delete Failed";
+}
+
+</script>
+
+</body>
+
+</html>
