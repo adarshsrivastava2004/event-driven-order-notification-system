@@ -19,20 +19,21 @@ public class OrderEventConsumer {
         this.emailService = emailService;
     }
 
-    @KafkaListener(
-        topics = "order-events",
-        groupId = "notification-group"
-    )
-    public void consume(OrderEvent event) {
+    @KafkaListener(topics = "order-events", groupId = "notification-group")
+public void consume(OrderEvent event) {
 
-        System.out.println("📥 Event Received for Order: " + event.getOrderId());
-
-        String aiMessage = aiService.generateOrderMessage(event);
+    try {
+        String message = aiService.generateOrderMessage(event);
 
         emailService.sendEmail(
             event.getUserEmail(),
             "Order Update - " + event.getOrderId(),
-            aiMessage
+            message
         );
+
+    } catch (Exception ex) {
+        System.err.println(" Notification failed, event skipped: " + ex.getMessage());
     }
+}
+
 }

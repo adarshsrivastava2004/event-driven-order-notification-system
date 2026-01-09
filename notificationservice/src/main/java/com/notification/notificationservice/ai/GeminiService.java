@@ -3,6 +3,8 @@ package com.notification.notificationservice.ai;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -11,19 +13,27 @@ import com.notification.notificationservice.model.OrderEvent;
 @Service
 public class GeminiService implements AiService {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(GeminiService.class);
+
+    
     private static final String GEMINI_URL =
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-  + "gemini-1.0-pro:generateContent?key=";
+         "https://generativelanguage.googleapis.com/v1beta/models/"
++ "gemini-2.5-flash:generateContent?key=";
 
+    private final RestTemplate restTemplate;
+    private final String apiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final String apiKey = System.getenv("GEMINI_API_KEY");
+    public GeminiService() {
+        this.restTemplate = new RestTemplate();
+        this.apiKey = System.getenv("GEMINI_API_KEY");
+    }
 
     @Override
     public String generateOrderMessage(OrderEvent event) {
 
         if (apiKey == null || apiKey.isBlank()) {
-            System.out.println("❌ GEMINI_API_KEY missing");
+            log.warn("GEMINI_API_KEY not found, using fallback message");
             return fallback(event);
         }
 
@@ -46,22 +56,21 @@ public class GeminiService implements AiService {
                 Map.class
             );
 
-            System.out.println("🧠 Gemini raw response = " + response);
-
             return extractText(response);
 
-        } catch (Exception e) {
-            e.printStackTrace(); // 🔥 Kafka consumer must not crash
+        } catch (Exception ex) {
+            
+            log.error("Gemini API failed, using fallback", ex);
             return fallback(event);
         }
     }
 
+    
     private String buildPrompt(OrderEvent event) {
         return """
-        You are an e-commerce notification assistant.
-        Do NOT change facts.
+        You are a notification assistant for an order system.
+        Do not change or invent facts.
 
-        Facts:
         Order ID: %d
         Product: %s
         Status: %s
@@ -80,12 +89,16 @@ public class GeminiService implements AiService {
     @SuppressWarnings("unchecked")
     private String extractText(Map<?, ?> response) {
 
+        if (response == null) {
+            return fallbackText();
+        }
+
         try {
             List<Map<String, Object>> candidates =
                 (List<Map<String, Object>>) response.get("candidates");
 
             if (candidates == null || candidates.isEmpty()) {
-                return "Your order update is available.";
+                return fallbackText();
             }
 
             Map<String, Object> content =
@@ -95,19 +108,22 @@ public class GeminiService implements AiService {
                 (List<Map<String, Object>>) content.get("parts");
 
             if (parts == null || parts.isEmpty()) {
-                return "Your order update is available.";
+                return fallbackText();
             }
 
             return parts.get(0).get("text").toString();
 
         } catch (Exception e) {
-            System.err.println("❌ Gemini response parsing failed");
-            return "Your order update is available.";
+            return fallbackText();
         }
     }
 
     private String fallback(OrderEvent event) {
         return "Your order " + event.getOrderId()
                + " is currently " + event.getStatus() + ".";
+    }
+
+    private String fallbackText() {
+        return "Your order update is available.";
     }
 }
